@@ -14,8 +14,11 @@ MFOutput::MFOutput()
 void MFOutput::attach(uint8_t pin)
 {
     _pin = pin;
-#ifdef ARDUINO_ARCH_RP2040
+    // Use OUTPUT_12MA for RP2040, OUTPUT for others, allow override for ESP32 if needed
+#if defined(ARDUINO_ARCH_RP2040)
     pinMode(_pin, OUTPUT_12MA);
+#elif defined(ARDUINO_ARCH_ESP32)
+    pinMode(_pin, OUTPUT);
 #else
     pinMode(_pin, OUTPUT);
 #endif

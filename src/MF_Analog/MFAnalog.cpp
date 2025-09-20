@@ -18,6 +18,7 @@ void MFAnalog::attach(uint8_t pin, const char *name, uint8_t sensitivity, bool d
     _sensitivity = sensitivity;
     _pin         = pin;
     _name        = name;
+    // Special analog pin handling for some boards
 #ifdef ARDUINO_AVR_PROMICRO16
     // ProMicro has a special pin assignment for analog pins
     // therefore reading from A6 and A7 does not work
@@ -26,11 +27,13 @@ void MFAnalog::attach(uint8_t pin, const char *name, uint8_t sensitivity, bool d
         _pin = A6;
     else if (_pin == 6)
         _pin = A7;
+#elif defined(ARDUINO_ARCH_ESP32)
+    // ESP32 analog pins are just numbers, but check for deprecated mapping if needed
 #endif
     // enabling PullUp makes a nonlinear behaviour if pot is used
     if (deprecated)
         pinMode(_pin, INPUT_PULLUP);
-        
+
     // Fill averaging buffers with initial reading
     for (uint8_t i = 0; i < ADC_MAX_AVERAGE; i++) {
         readBuffer();

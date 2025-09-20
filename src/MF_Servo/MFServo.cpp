@@ -12,8 +12,10 @@ void MFServo::moveTo(int absolute)
     if (_targetPos != newValue) {
         _targetPos = newValue;
         if (!_initialized) {
-#ifdef ARDUINO_ARCH_RP2040
+#if defined(ARDUINO_ARCH_RP2040)
             _servo.attach(_pin, 544, 2400);
+#elif defined(ARDUINO_ARCH_ESP32)
+            _servo.attach(_pin, 500, 2500); // ESP32 typical servo pulse range
 #else
             _servo.attach(_pin);
 #endif

@@ -11,8 +11,13 @@
 #include "Button.h"
 #include "Encoder.h"
 #include "Output.h"
+
 #if !defined(ARDUINO_ARCH_AVR)
+#if defined(ARDUINO_ARCH_ESP32)
+#include <esp_system.h>
+#else
 #include "ArduinoUniqueID.h"
+#endif
 #endif
 
 #ifdef MF_ANALOG_SUPPORT
@@ -69,8 +74,11 @@ const uint8_t MEM_OFFSET_SERIAL = MEM_OFFSET_NAME + MEM_LEN_NAME;
 const uint8_t MEM_LEN_SERIAL    = 11;
 const uint8_t MEM_OFFSET_CONFIG = MEM_OFFSET_NAME + MEM_LEN_NAME + MEM_LEN_SERIAL;
 
+// Serial buffer for AVR and ESP32/other
 #ifdef ARDUINO_ARCH_AVR
 char serial[11]; // 3 characters for "SN-",7 characters for "xyz-zyx" plus terminating NULL
+#elif defined(ARDUINO_ARCH_ESP32)
+char serial[3 + 12 * 2 + 1]; // 3 for "SN-", 12 bytes MAC/ChipID as HEX, null term
 #else
 char serial[3 + UniqueIDsize * 2 + 1]; // 3 characters for "SN-", UniqueID as HEX String, terminating NULL
 #endif
@@ -81,7 +89,7 @@ uint16_t       configLengthEEPROM              = 0;
 boolean        configActivated                 = false;
 uint16_t       pNameBuffer                     = 0; // pointer for nameBuffer during reading of config
 const uint16_t configLengthFlash               = sizeof(CustomDeviceConfig);
-bool boardReady                                = false;
+bool           boardReady                      = false;
 
 void resetConfig();
 void readConfig();
@@ -518,10 +526,10 @@ void readConfigFromMemory(bool configFromFlash)
 #ifdef MF_ANALOG_SUPPORT
         case kTypeAnalogInputDeprecated:
         case kTypeAnalogInput:
-            params[0] = readUint(&addrMem, configFromFlash);                              // pin number
-            params[1] = readUint(&addrMem, configFromFlash);                              // sensitivity
+            params[0] = readUint(&addrMem, configFromFlash); // pin number
+            params[1] = readUint(&addrMem, configFromFlash); // sensitivity
             if (command == kTypeAnalogInputDeprecated)
-                Analog::Add(params[0], &nameBuffer[pNameBuffer], params[1], true);        // MUST be before readName because readName returns the pointer for the NEXT Name
+                Analog::Add(params[0], &nameBuffer[pNameBuffer], params[1], true); // MUST be before readName because readName returns the pointer for the NEXT Name
             else
                 Analog::Add(params[0], &nameBuffer[pNameBuffer], params[1], false);       // MUST be before readName because readName returns the pointer for the NEXT Name
             copy_success = readName(&addrMem, nameBuffer, &pNameBuffer, configFromFlash); // copy the NULL terminated name to to nameBuffer and set to next free memory location
@@ -679,6 +687,23 @@ void generateRandomSerial()
 #endif
 
 #if !defined(ARDUINO_ARCH_AVR)
+#if defined(ARDUINO_ARCH_ESP32)
+void readUniqueSerial()
+{
+    serial[0] = 'S';
+    serial[1] = 'N';
+    serial[2] = '-';
+    uint8_t chipid[6];
+    esp_efuse_mac_get_default(chipid);
+    for (int i = 0; i < 6; ++i) {
+        serial[3 + i * 2] = ((chipid[i] >> 4) & 0x0F) + 48;
+        if (serial[3 + i * 2] >= 58) serial[3 + i * 2] += 7;
+        serial[3 + i * 2 + 1] = (chipid[i] & 0x0F) + 48;
+        if (serial[3 + i * 2 + 1] >= 58) serial[3 + i * 2 + 1] += 7;
+    }
+    serial[3 + 6 * 2] = 0x00;
+}
+#else
 void readUniqueSerial()
 {
     serial[0] = 'S';
@@ -691,6 +716,7 @@ void readUniqueSerial()
         if (serial[3 + i * 2 + 1] >= 58) serial[3 + i * 2 + 1] += 7;
     }
 }
+#endif
 #endif
 
 void generateSerial(bool force)

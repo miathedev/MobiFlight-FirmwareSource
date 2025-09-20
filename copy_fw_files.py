@@ -25,8 +25,12 @@ def copy_fw_files (source, target, env):
     if os.path.exists(build_path_json) == False:
         os.makedirs(build_path_json)
 
+    # Only convert bin to uf2 for Raspberry Pi Pico boards
     if fw_file_name[-3:] == "bin":
-        fw_file_name=fw_file_name[0:-3] + "uf2"
+        # Check if this is a Pico board by looking at the environment name
+        env_name = env.get('PIOENV', '')
+        if 'pico' in env_name.lower():
+            fw_file_name=fw_file_name[0:-3] + "uf2"
 
     # Copy build FW file
     shutil.copy(fw_file_name, build_path_fw)
